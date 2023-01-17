@@ -1,0 +1,322 @@
+
+---
+title: "Bellabeat Case Study"
+author: "Jerchiel Jusi"
+date: "2022-09-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### INTRODUCTION
+
+**Setting**
+
+Bellabeat is a high-tech manufacturer to improve health for women by providing products catered for health improvement. Bellabeat has the potential to become a larger player in the global smart device. This analysis will be to gain insights how consumers are using this smart device.
+
+### ASK
+
+Business task: We need to analyze and identify the trends based on the data usage given. Through these observations, we can curate a new high-level marketing strategy to identify more opportunities for growth.
+
+**Stakeholder:**
+
+Primary stakeholders: cofounders, Sandro Mur and Urska Srsen.
+
+Secondary stakeholders: Bellabeat analysis team.
+
+### PREPARE
+
+-   Data is stored and can be found on [Kaggle:Fitbit Fitness Tracker Data](https://www.kaggle.com/datasets/arashnic/fitbit).
+-   Data is organized both in wide and narrow format to allow for a more thorough analysis.
+-   ROCCC- This data is not a good data source because of the following:
+
+1.  **R**eliable- data is not reliable as there is only 30 participants. The 30 participants does not represent the entire Bellabeat users so as a result, data can be biased.
+2.  **O**riginal- data came from Amazon Mechanical Turk.
+3.  **C**omprehensive- data was measured in variables needed for proper analysis.
+4.  **C**urrent- data was collected on 03-12-2016 to 05-12-2016 (5 years old), and it has not been updated since.
+5.  **C**ited- data is from a third party so credibility is not known.
+
+### PROCESS
+
+R is used for this data analysis for data cleaning, processing, analyzing, and visualization.
+
+```{r}
+## Installing the packages needed for data analsysi 
+install.packages("tidyverse")
+library(tidyverse)
+```
+
+```{r}
+## Downloading all the data files needed for analysis
+steps <- read_csv("hourlySteps_merged.csv") 
+calories <- read_csv("dailyCalories_merged.csv") 
+intensities <- read_csv("dailyIntensities_merged.csv")
+activity <- read_csv("dailyActivity_merged.csv")
+sleep <- read_csv("sleepDay_merged.csv")
+weight <- read_csv("weightLogInfo_merged.csv")
+```
+
+```{r}
+## Need to verify that all data was uploaded correct
+head(steps)
+```
+
+```{r}
+head(calories) 
+```
+
+```{r}
+head(intensities)  
+```
+
+```{r}
+head(activity) 
+```
+
+```{r}
+head(sleep) 
+ 
+```
+
+```{r}
+head(weight)
+```
+
+```{r}
+## CLEANING DATA
+## Need to verify that there are the same amount of participants in all data files
+## I also need to check and remove any duplicates or nulls in the data
+n_distinct(steps$Id)
+sum(duplicated(steps))
+```
+
+```{r}
+n_distinct(calories$Id)
+sum(duplicated(calories))
+```
+
+```{r}
+n_distinct(intensities$Id)
+sum(duplicated(intensities))
+```
+
+```{r}
+n_distinct(activity$Id)
+sum(duplicated(activity))
+```
+
+```{r}
+n_distinct(sleep$Id)
+sum(duplicated(sleep))
+```
+
+```{r}
+## Fix dataframe so it does not include the 3 duplicates
+sleep <- sleep[!duplicated(sleep),]
+```
+
+```{r}
+n_distinct(weight$Id)
+sum(duplicated(weight))
+## Since there are only 8 participants, this data set will not be used for analysis 
+```
+
+Briefly looking over the datasets, an inconsistent formatting was found for the date and time, and labelling. Each data will be cleaned by formatting DateTime to Date and Time format, and column names will also be changed for consistensy.
+
+```{r}
+calories$ActivityDay = as.Date(calories$ActivityDay, 
+                               format = c("%m/%d/%Y"), 
+                               optional = FALSE)
+activity= rename(activity, ActivityDay=ActivityDate)
+activity$ActivityDay = as.Date(activity$ActivityDay, 
+                               format = c("%m/%d/%Y"), 
+                               optional = FALSE)
+intensities$ActivityDay = as.Date(intensities$ActivityDay, 
+                                  format = c("%m/%d/%Y"), 
+                                  optional = FALSE)
+sleep = rename(sleep, 
+               ActivityDay=SleepDay)
+sleep$ActivityDay = as.POSIXct(sleep$ActivityDay, 
+                               format= c("%m/%d/%Y %H:%M:%S"))
+sleep$ActivityDay = as.Date(sleep$ActivityDay)
+steps$ActivityHour = as.POSIXct(steps$ActivityHour, 
+                                format= c("%m/%d/%Y %I:%M:%S %p"))
+steps$Date = as.Date(steps$ActivityHour)
+steps$Time = format(steps$ActivityHour, 
+                    tz= "UTC", 
+                    format= c("%I:%M:%S %p"))
+```
+
+### ANALYZE
+
+I will now analyze the data to fit how I want it for the analysis. After analysis, data will be plotted to determine the trends between variables.
+
+```{r}
+calories_by_steps <- activity %>% 
+  select(ActivityDay, TotalSteps, Calories)
+
+calories_by_steps$weekdays <- weekdays(calories_by_steps$ActivityDay)
+calories_by_steps$weekdays <- factor(calories_by_steps$weekdays, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+```
+
+```{r}
+steps_average <- calories_by_steps %>% 
+  group_by(weekdays) %>% 
+  summarise(average_steps = mean(TotalSteps))
+summary(steps_average)
+```
+
+```{r}
+ggplot(data = calories_by_steps, 
+       aes(x=TotalSteps, 
+           y=Calories)) + 
+  geom_point(aes(fill=Calories, 
+                 color=Calories)) +
+  geom_smooth(method = "loess") +
+  labs(title = "Average calories burned by average steps of each users", 
+       caption= "Figure 1", 
+       x = "Steps",
+       y = "Calories")
+```
+
+We can see that the average calories burned by the users throughout the week has a positive relation to the steps they took. However, it seems that majority of the users hover towards the darker plots of the graph that can indicate less movement/steps.
+
+```{r}
+ggplot(data = steps_average, 
+       aes(x=weekdays, 
+           y=average_steps)) +
+  geom_col(aes(fill=average_steps)) +
+  labs(title = "Average steps of users during the week", 
+       caption = "Figure 2",
+       x="weekday",
+       y="steps")
+```
+
+It seems that users are most active on Tuesdays and Fridays and the least active on Sundays. Sundays are typically rest days for most which makes sense as to why it has the least amount of average steps of the users.
+
+```{r}
+## Merging data 
+sleep_final <- merge(sleep, intensities, c("Id", "ActivityDay")) %>% 
+  select(Id, ActivityDay, TotalMinutesAsleep, TotalTimeInBed, SedentaryMinutes)
+summary(sleep_final)
+```
+
+Users spent an average of 419.2 minutes of sleep (\~7 hours), and about 712.1 minutes of sedentary minutes (\~12 hours). The [recommended sleep for adults](https://www.cdc.gov/sleep/about_sleep/how_much_sleep.html) are said to be about 7-9 hours.
+
+It is uncertain as to why the sedentary minutes for users is alarmingly high. Many factors should be considered as to what that is the case such as: users are simply not wearing their FitBit tracker, majority of the day is spent sitting down at work, etc. A simple notification can be added to the phone app and the watch itself to alert users of their prolonged inactivity and signal activity.
+
+```{r}
+ggplot(data = sleep_final) +
+  geom_point(mapping = aes(x=TotalTimeInBed, 
+                           y=TotalMinutesAsleep, 
+                           color=TotalMinutesAsleep)) +
+  labs(title = "Relation of how much time users spend in bed to how long they are asleep",
+       caption= "Figure 3",
+       x= "Time In Bed", 
+       y= "Minutes Asleep")
+```
+
+Positive relation between the Time spend in bed and the minutes users are asleep.
+
+```{r}
+ggplot(data = sleep_final) +
+  geom_point(mapping = aes(x=TotalMinutesAsleep, 
+                           y=SedentaryMinutes, 
+                           color=SedentaryMinutes)) +
+  labs(title = "How much time users are asleep for compared to their sedentary minutes",
+       caption = "Figure 4", 
+       x = "Minutes Asleep", 
+       y = "Sedentary Minutes")
+```
+
+It is recommended for adults to get 7-9 hours of sleep. Looking at Figure 4, the max sedentary minutes is recorded to be 1265 with less than 200 minutes of it spent asleep. And just briefly looking at the graph, majority of the plots fall within the 300-500 range (5-8 hours) which is well below the [recommended hours of sleep for adults](https://www.cdc.gov/sleep/about_sleep/how_much_sleep.html). Users should be able to customize a sleep alert that will alert them when they should sleep to reach the goal time.
+
+```{r}
+activity_final <- activity %>% 
+  group_by(Id) %>% 
+  summarise(AverageSteps=mean(TotalSteps), 
+            AverageCalories=mean(Calories))
+```
+
+```{r}
+activity_final <- activity_final %>%   
+  mutate(Intensity = case_when(
+    AverageSteps < 5000 ~ "Sedentary",
+    AverageSteps >= 5000 & AverageSteps <= 7499 ~"Low Active",
+    AverageSteps >= 7500 & AverageSteps <= 9999 ~"Fairly Active",
+    AverageSteps >= 10000  ~"Very Active")) %>% 
+  mutate(Intensity = factor(Intensity, 
+                            labels = c("Sedentary", "Low Active", "Fairly Active", "Very Active")))
+head(activity_final)  
+
+```
+
+```{r}
+summary(activity_final)
+```
+
+I wanted to add a classification that can help us determine how active each users are based on their average steps throughout the week. The magic number for step goals to maintain good health is said to be [10,000](https://www.verywellfit.com/how-many-steps-per-day-are-enough-3432827). This helped me distinguished the intensity based on the steps.
+
+```{r}
+ggplot(activity_final, aes(x= Id, 
+                          y=Intensity, 
+                          fill=Intensity)) +
+  geom_bar(stat="identity", 
+           width=1) +
+  coord_polar("y", 
+              start=0) + 
+  labs(title = "Physical intensity based on the average steps throughout the week", 
+       caption = "Figure 5") +
+  theme_void()
+```
+
+Majority of the users intensity falls under Sedentary and Low Active which is calculated both at 27%. Since this classification is measured based on the average steps users take, the notification signalling users to end inactivity would be very useful to help remind users when to move.
+
+```{r}
+steps <- steps %>% 
+  select(Time, StepTotal) %>% 
+  group_by(Time) %>% 
+  summarise(average_steps= mean(StepTotal))
+summary(steps)
+```
+
+```{r}
+ggplot(data = steps, mapping=aes(x=forcats::fct_reorder(Time, average_steps), y=average_steps)) +
+  geom_col(aes(fill=average_steps)) +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.75, hjust = 1)) +
+  labs(title = "Average steps based on time", 
+       caption = "Figure 6",
+       x="Time", 
+       y="Steps")
+```
+
+This graph was ordered by the time when users took the most steps. The max average_steps was valued at \~600 steps at 6:00 PM. Majority of the steps are taken between 12:00PM-7:00PM which can be caused by many factors such as users simply getting off of work. From 8:00AM-11:00AM not much steps are taken by users, which again can be due to the fact that they are working.
+
+If users are alerted to signal activity after prolonged inactivity, this can increase the steps they taken especially at work. This can signal them to take a break from sitting down to move and stretch, which ideally, can also decrease their sedementary minutes.
+
+### SHARE
+
+What are our key takeaways in this analysis?
+
+-   Users averaged about **12 hours** of sedentary minutes which is alarmingly high. This should be decreased to improve health quality.
+
+-   Sleep quality is very poor for most users where the recommended sleep of **7-9 hours** is not met, and users averaged about **5-8 hours** of sleep instead.
+
+-   **Sedentary** and **Low Active** intensity are most common, 27% (9/33).
+
+-   Not much activity is done until 12:00PM-7:00PM which we can assume is because of work. Because of this, sedentary minutes is alarmingly high for most users.
+
+### ACT
+
+**Recommendations for Bellabeat**
+
+1.  User should be able customize and set different type of goals before using the device so that they can actively keep track of their improvements. Seeing improvements can motivate and push them to keep going and creating new goals to achieve.
+
+2.  Send notification through phone app and device for prolonged inactivity. Encourage users to stand up and take a break from sitting to decrease sedentary minutes.
+
+3.  **Quality of sleep** is a big factor for good health. Users should be allowed to customize and set a sleep goal which they will be reminded about each night through their phone and device.
+
+4.  Rewards! Simple rewards such as acknowledgement can come a long way.
+
