@@ -4,6 +4,7 @@ title: "Bellabeat Case Study"
 author: "Jerchiel Jusi"
 date: "2022-09-03"
 output:
+  word_document: default
   pdf_document: default
   html_document: default
 ---
